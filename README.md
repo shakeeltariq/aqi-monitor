@@ -4,6 +4,8 @@ A standalone air-quality display for the 1.28" round touch board. It shows measu
 station AQI from WAQI (aqicn.org), with an Open-Meteo / CAMS model as the trend
 source and as a fallback, in a swipeable LVGL 9 interface.
 
+![AQI Monitor screens: Home, Pollutants, Trend, Health, Settings, and WiFi setup](aqi-monitor-screens.png)
+
 ## Screens (swipe left/right)
 
 | # | Screen | What it shows |
