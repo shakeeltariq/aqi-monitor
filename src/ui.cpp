@@ -124,7 +124,7 @@ static void build_home(lv_obj_t* t) {
 
   h_stn = mk_label(t, &lv_font_montserrat_12, C_MUTED, 62);
   lv_obj_set_width(h_stn, 128);
-  lv_label_set_long_mode(h_stn, LV_LABEL_LONG_SCROLL_CIRCULAR);
+  lv_label_set_long_mode(h_stn, LV_LABEL_LONG_DOT);
 
   h_fresh = mk_label(t, &lv_font_montserrat_12, C_MUTED, 80);
   h_dot = lv_obj_create(t);
@@ -443,7 +443,7 @@ static void build_settings(lv_obj_t* t) {
   s_ip = mk_label(t, &lv_font_montserrat_12, C_MUTED, 22, "");
   s_err = mk_label(t, &lv_font_montserrat_12, lv_color_hex(0xF2384A), 38, "");
   lv_obj_set_width(s_err, 180);
-  lv_label_set_long_mode(s_err, LV_LABEL_LONG_SCROLL_CIRCULAR);
+  lv_label_set_long_mode(s_err, LV_LABEL_LONG_DOT);
 
   s_resetBtn = lv_button_create(t);
   lv_obj_set_size(s_resetBtn, 150, 26);

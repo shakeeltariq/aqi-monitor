@@ -190,5 +190,12 @@ void loop() {
     manage_backlight();
   }
 
-  delay(5);
+  static uint32_t lastTemp = 0;
+  if (now - lastTemp >= 60000) {
+    lastTemp = now;
+    Serial.printf("[sys] chip temp %.1f C, free heap %u\n", temperatureRead(), (unsigned)ESP.getFreeHeap());
+  }
+
+  // Sleep longer when the screen is off: fewer wake-ups, less heat.
+  delay(screenOn ? 10 : 40);
 }

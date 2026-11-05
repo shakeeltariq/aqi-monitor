@@ -606,6 +606,7 @@ static void startServices() {
   MDNS.addService("http", "tcp", 80);
 
   wm.startWebPortal();  // settings page at http://aqi-monitor.local/
+  WiFi.setSleep(true);  // modem power-save between packets
   Serial.printf("[net] online: http://%s/  (http://%s.local/)\n", WiFi.localIP().toString().c_str(),
                 DEVICE_HOSTNAME);
 }
