@@ -30,6 +30,7 @@ static uint32_t lastActivity = 0;
 static bool screenOn = true;
 static bool swallowTouch = false;
 static int currentBl = -1;
+static int blOverride = -1;  // set from the serial console for testing
 static int lastBand = -1;
 static bool imuOk = false;
 
@@ -81,14 +82,24 @@ static void touch_cb(lv_indev_t*, lv_indev_data_t* data) {
 // ---------------------------------------------------------------------------
 // Backlight: user brightness, night dimming, idle timeout
 // ---------------------------------------------------------------------------
+
 static bool is_night(const Settings& s) {
-  if (s.nightStart < 0) return false;
+  if (!s.nightMode || s.nightStart < 0) return false;
   struct tm lt;
   if (!getLocalTime(&lt, 0)) return false;
   int h = lt.tm_hour;
   if (s.nightStart == s.nightEnd) return false;
   if (s.nightStart < s.nightEnd) return h >= s.nightStart && h < s.nightEnd;
   return h >= s.nightStart || h < s.nightEnd;  // window crosses midnight
+}
+
+// LED brightness looks logarithmic to the eye: with a linear duty, 100..255
+// all look the same. Map the 0..255 setting through a gamma 2.2 curve with a
+// small floor so the lowest non-zero setting is still readable.
+static uint8_t perceptual(int v) {
+  if (v <= 0) return 0;
+  if (v > 255) v = 255;
+  return (uint8_t)(4 + lroundf(powf(v / 255.0f, 2.2f) * 251.0f));
 }
 
 static void manage_backlight() {
@@ -98,9 +109,38 @@ static void manage_backlight() {
   }
   int target = 0;
   if (screenOn) target = is_night(s) ? s.nightBrightness : s.brightness;
+  if (blOverride >= 0) target = blOverride;  // serial "bld" test value, raw
   if (target != currentBl) {
-    lcd.setBrightness(target);
+    uint8_t out = blOverride >= 0 ? (uint8_t)target : perceptual(target);
+    lcd.setBrightness(out);
     currentBl = target;
+    Serial.printf("[bl] setting %d -> pwm %u/255\n", target, out);
+  }
+}
+
+// Serial backlight diagnostics (115200 baud, newline-terminated):
+//   blf <hz>   change PWM frequency, e.g. blf 200 / blf 1000 / blf 20000
+//   bld <0-255> force a raw PWM value, bld -1 returns to the slider
+static void poll_serial() {
+  static char line[32];
+  static size_t n = 0;
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c != '\n' && c != '\r') {
+      if (n < sizeof(line) - 1) line[n++] = c;
+      continue;
+    }
+    line[n] = 0;
+    n = 0;
+    if (!strncmp(line, "blf ", 4)) {
+      uint32_t hz = strtoul(line + 4, nullptr, 10);
+      bool ok = hz >= 50 && hz <= 100000 && lcd.setBacklightFreq(hz);
+      Serial.printf("[bl] freq %u Hz: %s\n", (unsigned)hz, ok ? "ok" : "FAILED");
+      currentBl = -1;
+    } else if (!strncmp(line, "bld ", 4)) {
+      blOverride = constrain(atoi(line + 4), -1, 255);
+      currentBl = -1;
+    }
   }
 }
 
@@ -185,8 +225,9 @@ void loop() {
     lastImu = now;
     poll_imu();
   }
-  if (now - lastBl >= 250) {
+  if (now - lastBl >= 100) {  // fast enough to follow the brightness slider
     lastBl = now;
+    poll_serial();
     manage_backlight();
   }
 

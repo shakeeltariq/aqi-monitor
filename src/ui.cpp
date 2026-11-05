@@ -44,8 +44,9 @@ static lv_chart_series_t* t_ser;
 static lv_obj_t *hl_icon, *hl_title, *hl_text;
 
 // Settings
-static lv_obj_t *s_slider, *s_ip, *s_err, *s_resetBtn, *s_resetLbl;
+static lv_obj_t *s_slider, *s_autoSw, *s_nightSw, *s_nightLbl, *s_ip, *s_resetBtn, *s_resetLbl;
 static uint32_t s_resetArmedAt = 0;
+static uint32_t as_tileSince = 0;  // when the current tile became active (auto-scroll)
 
 // Overlay
 static lv_obj_t *ov, *ov_lbl;
@@ -409,6 +410,18 @@ static void slider_cb(lv_event_t* e) {
 
 static void refresh_cb(lv_event_t*) { net_request_refresh(); }
 
+static void autoscroll_cb(lv_event_t*) {
+  Settings s = settings_get();
+  s.autoScroll = lv_obj_has_state(s_autoSw, LV_STATE_CHECKED);
+  settings_set(s, true);
+}
+
+static void night_cb(lv_event_t*) {
+  Settings s = settings_get();
+  s.nightMode = lv_obj_has_state(s_nightSw, LV_STATE_CHECKED);
+  settings_set(s, true);
+}
+
 static void reset_cb(lv_event_t*) {
   if (s_resetArmedAt && millis() - s_resetArmedAt < 5000) {
     lv_label_set_text(s_resetLbl, "Resetting...");
@@ -419,36 +432,69 @@ static void reset_cb(lv_event_t*) {
   lv_label_set_text(s_resetLbl, "Hold again to confirm");
 }
 
-static void build_settings(lv_obj_t* t) {
-  mk_label(t, &lv_font_montserrat_16, C_TEXT, -84, LV_SYMBOL_SETTINGS "  Settings");
+// A toggle row: a switch on the right with its label right-aligned against it.
+static lv_obj_t* mk_toggle(lv_obj_t* t, int y, bool on, lv_event_cb_t cb, lv_obj_t** lblOut) {
+  lv_obj_t* sw = lv_switch_create(t);
+  lv_obj_set_size(sw, 36, 20);
+  lv_obj_align(sw, LV_ALIGN_CENTER, 64, y);
+  if (on) lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_add_event_cb(sw, cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  *lblOut = mk_label(t, &lv_font_montserrat_14, C_TEXT, y);
+  return sw;
+}
 
-  mk_label(t, &lv_font_montserrat_12, C_MUTED, -60, LV_SYMBOL_IMAGE "  Brightness");
+// "Night 23:00-07:00"; the switch is disabled when no hours are set in the web setup.
+static void night_label_update() {
+  Settings s = settings_get();
+  if (s.nightStart < 0 || s.nightStart == s.nightEnd) {
+    lv_label_set_text(s_nightLbl, "Night: no hours set");
+    lv_obj_add_state(s_nightSw, LV_STATE_DISABLED);
+  } else {
+    lv_label_set_text_fmt(s_nightLbl, "Night %02d:00-%02d:00", s.nightStart, s.nightEnd);
+    lv_obj_remove_state(s_nightSw, LV_STATE_DISABLED);
+  }
+  lv_obj_align_to(s_nightLbl, s_nightSw, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+}
+
+static void build_settings(lv_obj_t* t) {
+  mk_label(t, &lv_font_montserrat_16, C_TEXT, -88, LV_SYMBOL_SETTINGS "  Settings");
+
+  mk_label(t, &lv_font_montserrat_12, C_MUTED, -68, LV_SYMBOL_IMAGE "  Brightness");
   s_slider = lv_slider_create(t);
   lv_obj_set_size(s_slider, 150, 10);
-  lv_obj_align(s_slider, LV_ALIGN_CENTER, 0, -40);
+  lv_obj_align(s_slider, LV_ALIGN_CENTER, 0, -51);
+  lv_obj_set_ext_click_area(s_slider, 14);  // easier to grab on a small touch panel
   lv_slider_set_range(s_slider, 10, 255);
   lv_slider_set_value(s_slider, settings_get().brightness, LV_ANIM_OFF);
   lv_obj_add_event_cb(s_slider, slider_cb, LV_EVENT_VALUE_CHANGED, nullptr);
   lv_obj_add_event_cb(s_slider, slider_cb, LV_EVENT_RELEASED, nullptr);
 
   lv_obj_t* btn = lv_button_create(t);
-  lv_obj_set_size(btn, 124, 34);
-  lv_obj_align(btn, LV_ALIGN_CENTER, 0, -8);
-  lv_obj_set_style_radius(btn, 17, 0);
+  lv_obj_set_size(btn, 124, 28);
+  lv_obj_align(btn, LV_ALIGN_CENTER, 0, -25);
+  lv_obj_set_style_radius(btn, 14, 0);
   lv_obj_add_event_cb(btn, refresh_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t* bl = lv_label_create(btn);
   lv_label_set_text(bl, LV_SYMBOL_REFRESH "  Refresh");
   lv_obj_center(bl);
 
-  s_ip = mk_label(t, &lv_font_montserrat_12, C_MUTED, 22, "");
-  s_err = mk_label(t, &lv_font_montserrat_12, lv_color_hex(0xF2384A), 38, "");
-  lv_obj_set_width(s_err, 180);
-  lv_label_set_long_mode(s_err, LV_LABEL_LONG_DOT);
+  Settings s = settings_get();
+  lv_obj_t* asl;
+  s_autoSw = mk_toggle(t, 4, s.autoScroll, autoscroll_cb, &asl);
+  lv_label_set_text(asl, LV_SYMBOL_LOOP " Auto-scroll");
+  lv_obj_align_to(asl, s_autoSw, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+  s_nightSw = mk_toggle(t, 30, s.nightMode, night_cb, &s_nightLbl);
+  night_label_update();
+
+  // IP line; shows the last error in red instead when there is one
+  s_ip = mk_label(t, &lv_font_montserrat_12, C_MUTED, 52, "");
+  lv_obj_set_width(s_ip, 180);
+  lv_label_set_long_mode(s_ip, LV_LABEL_LONG_DOT);
 
   s_resetBtn = lv_button_create(t);
-  lv_obj_set_size(s_resetBtn, 150, 26);
-  lv_obj_align(s_resetBtn, LV_ALIGN_CENTER, 0, 62);
-  lv_obj_set_style_radius(s_resetBtn, 13, 0);
+  lv_obj_set_size(s_resetBtn, 150, 22);
+  lv_obj_align(s_resetBtn, LV_ALIGN_CENTER, 0, 72);
+  lv_obj_set_style_radius(s_resetBtn, 11, 0);
   lv_obj_set_style_bg_color(s_resetBtn, lv_color_hex(0x3A1E24), 0);
   lv_obj_add_event_cb(s_resetBtn, reset_cb, LV_EVENT_LONG_PRESSED, nullptr);
   s_resetLbl = lv_label_create(s_resetBtn);
@@ -456,17 +502,21 @@ static void build_settings(lv_obj_t* t) {
   lv_label_set_text(s_resetLbl, "Hold: reset WiFi");
   lv_obj_center(s_resetLbl);
 
-  mk_label(t, &lv_font_montserrat_12, C_MUTED, 88, "aqicn.org | Open-Meteo");
+  mk_label(t, &lv_font_montserrat_12, C_MUTED, 91, "aqicn.org | Open-Meteo");
 }
 
 static void settings_update() {
-  if (st.phase == NetPhase::Online && st.ip[0])
+  bool err = st.lastError[0] != 0;
+  lv_obj_set_style_text_color(s_ip, err ? lv_color_hex(0xF2384A) : C_MUTED, 0);
+  if (err)
+    lv_label_set_text(s_ip, st.lastError);
+  else if (st.phase == NetPhase::Online && st.ip[0])
     lv_label_set_text_fmt(s_ip, LV_SYMBOL_WIFI " %s", st.ip);
   else if (st.phase == NetPhase::SetupPortal)
     lv_label_set_text_fmt(s_ip, "Setup AP: %s", st.apName);
   else
     lv_label_set_text(s_ip, LV_SYMBOL_WIFI " offline");
-  lv_label_set_text(s_err, st.lastError);
+  night_label_update();  // hours may have changed in the web setup
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +532,7 @@ static void update_dots() {
 
 static void tv_changed(lv_event_t*) {
   update_dots();
+  as_tileSince = millis();
   if (s_resetArmedAt) {
     s_resetArmedAt = 0;
     lv_label_set_text(s_resetLbl, "Hold: reset WiFi");
@@ -521,6 +572,29 @@ static void overlay_update() {
   } else {
     lv_obj_add_flag(ov, LV_OBJ_FLAG_HIDDEN);
   }
+}
+
+// Auto-scroll: once nobody has touched the screen for a while, step through the
+// data screens (Home -> Pollutants -> Trend -> Health -> Home). Settings is never
+// entered automatically, and the cycle pauses while the user is on it.
+static constexpr uint32_t AUTOSCROLL_IDLE_MS = 15000;
+
+static void autoscroll_timer(lv_timer_t*) {
+  Settings s = settings_get();
+  if (!s.autoScroll || !haveState || !st.data.valid) return;
+  if (!lv_obj_has_flag(ov, LV_OBJ_FLAG_HIDDEN)) return;  // overlay showing
+  if (on_tile(TILE_SETTINGS)) return;
+  if (lv_display_get_inactive_time(nullptr) < AUTOSCROLL_IDLE_MS) return;
+  uint32_t dwell = (s.autoScrollSec < 3 ? 3 : s.autoScrollSec) * 1000UL;
+  if (millis() - as_tileSince < dwell) return;
+
+  int cur = 0;
+  for (int i = 0; i < TILE_COUNT; i++)
+    if (on_tile(i)) cur = i;
+  int next = (cur + 1) % TILE_SETTINGS;  // wrap before the Settings tile
+  lv_tileview_set_tile(tv, tiles[next], next == 0 ? LV_ANIM_OFF : LV_ANIM_ON);
+  update_dots();  // set_tile doesn't always fire VALUE_CHANGED
+  as_tileSince = millis();
 }
 
 static void tick_timer(lv_timer_t*) {
@@ -592,6 +666,7 @@ void ui_init() {
 
   lv_timer_create(tick_timer, 10000, nullptr);
   lv_timer_create(poll_cycle_timer, 3500, nullptr);
+  lv_timer_create(autoscroll_timer, 500, nullptr);
   home_update_fresh();
 }
 

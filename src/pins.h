@@ -35,6 +35,12 @@
 #define PIN_TP_RST 13
 #endif
 
+// Backlight PWM frequency. Duty changes only dim the backlight if its driver
+// follows this frequency; test others live with the serial command "blf <hz>".
+#ifndef LCD_BL_FREQ
+#define LCD_BL_FREQ 200
+#endif
+
 #define LCD_W 240
 #define LCD_H 240
 

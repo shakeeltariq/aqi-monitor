@@ -11,9 +11,12 @@ struct Settings {
 
   uint8_t brightness;       // 10..255
   uint8_t nightBrightness;  // 0..255 (0 = backlight off at night)
+  bool nightMode;           // on-device toggle for night dimming
   int8_t nightStart;        // hour 0..23, -1 = night mode off
   int8_t nightEnd;          // hour 0..23
   uint16_t screenTimeoutMin;  // 0 = always on
+  bool autoScroll;          // cycle through the data screens when idle
+  uint8_t autoScrollSec;    // seconds per screen, 3..60
 
   char tz[40];            // POSIX TZ string, e.g. "PKT-5"
 

@@ -53,11 +53,19 @@ class LGFX : public lgfx::LGFX_Device {
       auto cfg = _light.config();
       cfg.pin_bl = PIN_LCD_BL;
       cfg.invert = false;
-      cfg.freq = 44100;
+      cfg.freq = LCD_BL_FREQ;
       cfg.pwm_channel = 7;
       _light.config(cfg);
       _panel.setLight(&_light);
     }
     setPanel(&_panel);
+  }
+
+  // Re-initialise the backlight PWM at a new frequency (diagnostics).
+  bool setBacklightFreq(uint32_t hz) {
+    auto cfg = _light.config();
+    cfg.freq = hz;
+    _light.config(cfg);
+    return _light.init(getBrightness());
   }
 };

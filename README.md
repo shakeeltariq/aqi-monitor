@@ -14,7 +14,11 @@ source and as a fallback, in a swipeable LVGL 9 interface.
 | 2 | Pollutants | Ring of PM2.5 / PM10 / O3 / NO2 / SO2 / CO sub-indices. Tap a segment (or the centre) to inspect; auto-cycles when idle. |
 | 3 | Trend | Last 12 h and next 12 h (model), plus tomorrow's peak chip. |
 | 4 | Health | Advice for the current AQI band. |
-| 5 | Settings | Brightness, Refresh, device IP, last error, hold-to-reset WiFi. |
+| 5 | Settings | Brightness, Refresh, Auto-scroll on/off, Night dimming on/off (shows the night hours), device IP or last error, hold-to-reset WiFi. |
+
+Auto-scroll (on by default): after 15 s without a touch, the screen steps through
+Home, Pollutants, Trend and Health, 8 s each. It never moves onto Settings, and it
+pauses while you are on Settings. Set the seconds per screen in the web setup page.
 
 The screen background tints with the AQI band colour. Values above 500 display as
 "Hazardous+" with the real number shown.

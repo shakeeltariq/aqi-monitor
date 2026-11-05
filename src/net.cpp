@@ -45,6 +45,7 @@ static WiFiManagerParameter* p_nstart;
 static WiFiManagerParameter* p_nend;
 static WiFiManagerParameter* p_nbri;
 static WiFiManagerParameter* p_sto;
+static WiFiManagerParameter* p_ass;
 static WiFiManagerParameter* p_mhost;
 static WiFiManagerParameter* p_mport;
 static WiFiManagerParameter* p_muser;
@@ -499,6 +500,7 @@ static void onSaveParams() {
   s.nightEnd = constrain(atoi(p_nend->getValue()), 0, 23);
   s.nightBrightness = constrain(atoi(p_nbri->getValue()), 0, 255);
   s.screenTimeoutMin = constrain(atoi(p_sto->getValue()), 0, 1440);
+  s.autoScrollSec = constrain(atoi(p_ass->getValue()), 3, 60);
   trimInto(s.mqttHost, sizeof(s.mqttHost), p_mhost->getValue());
   int port = atoi(p_mport->getValue());
   s.mqttPort = (port > 0 && port < 65536) ? port : 1883;
@@ -537,6 +539,8 @@ static void buildPortal() {
   p_nbri = new WiFiManagerParameter("nbri", "Night brightness (0-255)", buf, 4);
   snprintf(buf, sizeof(buf), "%u", s.screenTimeoutMin);
   p_sto = new WiFiManagerParameter("sto", "Screen off after N idle minutes (0 = never)", buf, 5);
+  snprintf(buf, sizeof(buf), "%u", s.autoScrollSec);
+  p_ass = new WiFiManagerParameter("ass", "Auto-scroll seconds per screen (3-60; toggle on device)", buf, 3);
   p_mhost = new WiFiManagerParameter("mhost", "MQTT host (blank = disabled)", s.mqttHost, 63);
   snprintf(buf, sizeof(buf), "%u", s.mqttPort);
   p_mport = new WiFiManagerParameter("mport", "MQTT port", buf, 6);
@@ -561,6 +565,7 @@ static void buildPortal() {
   wm.addParameter(p_nend);
   wm.addParameter(p_nbri);
   wm.addParameter(p_sto);
+  wm.addParameter(p_ass);
   wm.addParameter(&hMqtt);
   wm.addParameter(p_mhost);
   wm.addParameter(p_mport);

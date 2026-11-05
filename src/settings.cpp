@@ -15,10 +15,13 @@ static void defaults(Settings& s) {
   s.lon = 74.3587f;
   s.refreshMin = 10;
   s.brightness = 200;
-  s.nightBrightness = 30;
+  s.nightBrightness = 20;
+  s.nightMode = true;
   s.nightStart = 23;
   s.nightEnd = 7;
   s.screenTimeoutMin = 0;
+  s.autoScroll = true;
+  s.autoScrollSec = 8;
   strlcpy(s.tz, "PKT-5", sizeof(s.tz));
   s.mqttPort = 1883;
 }
@@ -40,9 +43,12 @@ void settings_begin() {
   s_cur.refreshMin = p.getUShort("ref", s_cur.refreshMin);
   s_cur.brightness = p.getUChar("bri", s_cur.brightness);
   s_cur.nightBrightness = p.getUChar("nbri", s_cur.nightBrightness);
+  s_cur.nightMode = p.getBool("nm", s_cur.nightMode);
   s_cur.nightStart = p.getChar("nst", s_cur.nightStart);
   s_cur.nightEnd = p.getChar("nen", s_cur.nightEnd);
   s_cur.screenTimeoutMin = p.getUShort("sto", s_cur.screenTimeoutMin);
+  s_cur.autoScroll = p.getBool("as", s_cur.autoScroll);
+  s_cur.autoScrollSec = p.getUChar("ass", s_cur.autoScrollSec);
   loadStr(p, "tz", s_cur.tz, sizeof(s_cur.tz));
   loadStr(p, "mh", s_cur.mqttHost, sizeof(s_cur.mqttHost));
   s_cur.mqttPort = p.getUShort("mp", s_cur.mqttPort);
@@ -71,9 +77,12 @@ void settings_set(const Settings& s, bool persist) {
       p.putUShort("ref", s.refreshMin);
       p.putUChar("bri", s.brightness);
       p.putUChar("nbri", s.nightBrightness);
+      p.putBool("nm", s.nightMode);
       p.putChar("nst", s.nightStart);
       p.putChar("nen", s.nightEnd);
       p.putUShort("sto", s.screenTimeoutMin);
+      p.putBool("as", s.autoScroll);
+      p.putUChar("ass", s.autoScrollSec);
       p.putString("tz", s.tz);
       p.putString("mh", s.mqttHost);
       p.putUShort("mp", s.mqttPort);
@@ -84,3 +93,4 @@ void settings_set(const Settings& s, bool persist) {
   }
   xSemaphoreGive(s_mx);
 }
+
